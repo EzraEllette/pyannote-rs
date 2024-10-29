@@ -25,7 +25,7 @@ fn find_max_index(row: ArrayBase<ViewRepr<&f32>, IxDyn>) -> Result<usize> {
 }
 
 pub fn get_segments<P: AsRef<Path>>(
-    samples: &[f32],
+    samples: &[i16],
     sample_rate: u32,
     model_path: P,
 ) -> Result<impl Iterator<Item = Result<Segment>> + '_> {
@@ -55,7 +55,7 @@ pub fn get_segments<P: AsRef<Path>>(
             let window = &padded_samples[start..end];
 
             // Convert window to ndarray::Array1
-            let array = ndarray::Array1::from_iter(window.iter());
+            let array = ndarray::Array1::from_iter(window.iter().map(|x| *x as f32));
             let array = array.view().insert_axis(Axis(0)).insert_axis(Axis(1));
 
             // Handle potential errors during the session and input processing
