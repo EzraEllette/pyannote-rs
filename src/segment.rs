@@ -8,7 +8,7 @@ use std::{cmp::Ordering, path::Path};
 pub struct Segment {
     pub start: f64,
     pub end: f64,
-    pub samples: Vec<i16>,
+    pub samples: Vec<f32>,
 }
 
 fn find_max_index(row: ArrayBase<ViewRepr<&f32>, IxDyn>) -> Result<usize> {
@@ -25,7 +25,7 @@ fn find_max_index(row: ArrayBase<ViewRepr<&f32>, IxDyn>) -> Result<usize> {
 }
 
 pub fn get_segments<P: AsRef<Path>>(
-    samples: &[i16],
+    samples: &[f32],
     sample_rate: u32,
     model_path: P,
 ) -> Result<impl Iterator<Item = Result<Segment>> + '_> {
@@ -43,7 +43,7 @@ pub fn get_segments<P: AsRef<Path>>(
     // Pad end with silence for full last segment
     let padded_samples = {
         let mut padded = Vec::from(samples);
-        padded.extend(vec![0; window_size - (samples.len() % window_size)]);
+        padded.extend(vec![0.0; window_size - (samples.len() % window_size)]);
         padded
     };
 
@@ -54,12 +54,16 @@ pub fn get_segments<P: AsRef<Path>>(
             let end = (start + window_size).min(padded_samples.len());
             let window = &padded_samples[start..end];
 
-            // Convert window to ndarray::Array1
-            let array = ndarray::Array1::from_iter(window.iter().map(|x| *x as f32));
-            let array = array.view().insert_axis(Axis(0)).insert_axis(Axis(1));
+            // Convert window to ndarray::Array1 and ensure single ownership
+            let array = ndarray::Array1::from_vec(window.to_vec());
+            let array = array
+                .view()
+                .insert_axis(Axis(0))
+                .insert_axis(Axis(1))
+                .to_owned();
 
             // Handle potential errors during the session and input processing
-            let inputs = match ort::inputs![array.into_dyn()] {
+            let inputs = match ort::inputs![array] {
                 Ok(inputs) => inputs,
                 Err(e) => return Some(Err(eyre::eyre!("Failed to prepare inputs: {:?}", e))),
             };

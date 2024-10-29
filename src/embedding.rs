@@ -15,12 +15,7 @@ impl EmbeddingExtractor {
         Ok(Self { session })
     }
 
-    pub fn compute(&mut self, samples: &[i16]) -> Result<impl Iterator<Item = f32>> {
-        // Convert to f32 precisely
-        let mut samples_f32 = vec![0.0; samples.len()];
-        knf_rs::convert_integer_to_float_audio(samples, &mut samples_f32);
-        let samples = &samples_f32;
-
+    pub fn compute(&mut self, samples: &[f32]) -> Result<impl Iterator<Item = f32>> {
         let features: Array2<f32> = knf_rs::compute_fbank(samples)?;
         let features = features.insert_axis(ndarray::Axis(0)); // Add batch dimension
         let inputs = ort::inputs! ["feats" => features.view()]?;
